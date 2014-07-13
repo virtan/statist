@@ -1,6 +1,5 @@
 deps
 .eunit
-rebar
 subs
 ebin/
 .dialyzer_plt
