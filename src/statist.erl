@@ -86,10 +86,10 @@ terminate(_Reason, #state{} = State) ->
 serialize_map({_, _, Micro} = TimeStamp, Map) ->
     {_, {_, Min, Sec}} = calendar:now_to_local_time(TimeStamp),
     iolist_to_binary([
-      (integer_to_list(Min))/binary, ":",
-      (integer_to_list(Sec))/binary, ".",
-      (integer_to_list(Micro))/binary, " ",
-      (map_to_string(Map))/binary, "\n"
+      vutil:number_format(integer_to_list(Min), 2), ":",
+      vutil:number_format(integer_to_list(Sec), 2), ".",
+      vutil:number_format(integer_to_list(Micro), 6), " ",
+      map_to_string(Map), "\n"
                      ]).
 
 
@@ -101,7 +101,9 @@ map_to_string([], Output) ->
 
 %% 23:12.123654 type=calculation user=virtan ip=12.13.14.15 text=hello\ world
 map_to_string([{Key, Value} | Rest], Output) ->
-    map_to_string(Rest, [[$ , safe_binary(Key), $=, safe_binary(Value)] | Output]).
+    map_to_string(Rest, [[$ , safe_binary(vutil:any_to_binary(Key)),
+                          $=, safe_binary(vutil:any_to_binary(Value))]
+                         | Output]).
 
 
 %% Escape with backslash: space, =, \
@@ -109,14 +111,16 @@ map_to_string([{Key, Value} | Rest], Output) ->
 safe_binary(Binary) ->
     re:replace(
       re:replace(Binary, <<"( |=|\\\\)">>, <<"\\\\&">>, [global]),
-      <<"\n">>, <<"\\n">>, [global]).
+      <<"[\n]">>, <<"\\\\n">>, [global]).
 
 
 choose_file_to_write(TimeStamp, #state{file1 = File1, file2 = File2} = State) ->
     {{Year, Month, Day}, {Hour, _, _}} = calendar:now_to_local_time(TimeStamp),
-    Fn = integer_to_list(Year) ++ "/stat." ++
-         two_digits(integer_to_list(Month)) ++ two_digits(integer_to_list(Day)) ++
-         "." ++ two_digits(integer_to_list(Hour)) ++ ".data",
+    Fn = filename:join([application:get_env(statist, base_dir, "data"),
+                        integer_to_list(Year),
+                        "stat." ++ vutil:number_format(integer_to_list(Month), 2)
+                        ++ vutil:number_format(integer_to_list(Day), 2) ++ "."
+                        ++ vutil:number_format(integer_to_list(Hour), 2) ++ ".data"]),
     case {File1, File2} of
         {{Fn, Fd, _}, _} ->
             {Fd, State#state{file1 = {Fn, Fd, os:timestamp()}}};
@@ -139,13 +143,9 @@ choose_file_to_write(TimeStamp, #state{file1 = File1, file2 = File2} = State) ->
     end.
 
 
-two_digits([_] = OneDigit) -> [$0 | OneDigit];
-two_digits(MoreThanOneDigit) -> MoreThanOneDigit.
-
-
 open_file(FName) ->
-    file:make_dir(filename:dirname(FName)),
-    {ok, Fd} = file:open(FName, [write, append, binary, compressed]),
+    vutil:recursive_make_dir(filename:dirname(FName)),
+    {ok, Fd} = file:open(FName, [append]),
     Fd.
 
 
