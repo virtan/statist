@@ -1,4 +1,2 @@
 Statist
 =======
-
-Useful statistics
