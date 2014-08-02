@@ -19,7 +19,6 @@
 -record(state, {
           file1 = undefined,
           file2 = undefined
-          %% TODO: define internal state
         }).
 
 
@@ -54,7 +53,7 @@ handle_call(Unexpected, _From, #state{} = State) ->
 
 handle_cast({event, TimeStamp, Map}, #state{} = State) ->
     {FileToWrite, State1} = choose_file_to_write(TimeStamp, State),
-    MapSerialized = serialize_map(TimeStamp, Map),
+    MapSerialized = statformat:serialize_map(TimeStamp, Map),
     file:write(FileToWrite, MapSerialized),
     {noreply, State1};
 
@@ -83,44 +82,9 @@ terminate(_Reason, #state{} = State) ->
     ok.
 
 
-serialize_map({_, _, Micro} = TimeStamp, Map) ->
-    {_, {_, Min, Sec}} = calendar:now_to_local_time(TimeStamp),
-    iolist_to_binary([
-      vutil:number_format(integer_to_list(Min), 2), ":",
-      vutil:number_format(integer_to_list(Sec), 2), ".",
-      vutil:number_format(integer_to_list(Micro), 6), " ",
-      map_to_string(Map), "\n"
-                     ]).
-
-
-map_to_string(Map) ->
-    map_to_string(Map, []).
-
-map_to_string([], Output) ->
-    lists:reverse(Output);
-
-%% 23:12.123654 type=calculation user=virtan ip=12.13.14.15 text=hello\ world
-map_to_string([{Key, Value} | Rest], Output) ->
-    map_to_string(Rest, [[$ , safe_binary(vutil:any_to_binary(Key)),
-                          $=, safe_binary(vutil:any_to_binary(Value))]
-                         | Output]).
-
-
-%% Escape with backslash: space, =, \
-%% Newline becomes \n
-safe_binary(Binary) ->
-    re:replace(
-      re:replace(Binary, <<"( |=|\\\\)">>, <<"\\\\&">>, [global]),
-      <<"[\n]">>, <<"\\\\n">>, [global]).
-
 
 choose_file_to_write(TimeStamp, #state{file1 = File1, file2 = File2} = State) ->
-    {{Year, Month, Day}, {Hour, _, _}} = calendar:now_to_local_time(TimeStamp),
-    Fn = filename:join([application:get_env(statist, base_dir, "data"),
-                        integer_to_list(Year),
-                        "stat." ++ vutil:number_format(integer_to_list(Month), 2)
-                        ++ vutil:number_format(integer_to_list(Day), 2) ++ "."
-                        ++ vutil:number_format(integer_to_list(Hour), 2) ++ ".data"]),
+    Fn = statpartition:filepath_for_ts(TimeStamp),
     case {File1, File2} of
         {{Fn, Fd, _}, _} ->
             {Fd, State#state{file1 = {Fn, Fd, os:timestamp()}}};
@@ -132,11 +96,11 @@ choose_file_to_write(TimeStamp, #state{file1 = File1, file2 = File2} = State) ->
         {_, undefined} ->
             Fd = open_file(Fn),
             {Fd, State#state{file2 = {Fn, Fd, os:timestamp()}}};
-        {{Fn, Fd, AccessTime1}, {_, _, AccessTime2}} when AccessTime1 < AccessTime2 ->
+        {{_, Fd, AccessTime1}, {_, _, AccessTime2}} when AccessTime1 < AccessTime2 ->
             close_file(Fd),
             Fd1 = open_file(Fn),
             {Fd1, State#state{file1 = {Fn, Fd1, os:timestamp()}}};
-        {{_, _, AccessTime1}, {Fn, Fd, AccessTime2}} when AccessTime1 >= AccessTime2 ->
+        {{_, _, AccessTime1}, {_, Fd, AccessTime2}} when AccessTime1 >= AccessTime2 ->
             close_file(Fd),
             Fd1 = open_file(Fn),
             {Fd1, State#state{file2 = {Fn, Fd1, os:timestamp()}}}
