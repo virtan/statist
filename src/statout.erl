@@ -46,6 +46,7 @@ get(Processor, From, To) ->
 init(_Options) ->
     CacheFileName = filename:join([application:get_env(statist, base_dir, "data"), "cache"]),
     State = #state{cache_file = CacheFileName},
+    vutil:recursive_make_dir(filename:dirname(CacheFileName)),
     load_cache(State),
     erlang:start_timer(5*60*1000, self(), write_cache),
     {ok, State}.
@@ -184,7 +185,7 @@ get_mtime(File) ->
 
 global_test() ->
     os:cmd("rm -rf __data_temp"),
-    file:make_dir("__data_temp"),
+    %file:make_dir("__data_temp"),
     application:set_env(statist, base_dir, "__data_temp"),
     application:start(statist),
     gen_server:cast(statist, {event, {1350, 762937, 1213}, [{hello, world}]}),
