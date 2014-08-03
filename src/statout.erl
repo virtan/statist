@@ -156,7 +156,7 @@ from_cache(Processor, {file, File}) ->
         [] -> no;
         [{{Processor, File}, Value, FreshMTime}] -> {ok, Value};
         [{{Processor, File}, _, _}] ->
-            ets:delete(Processor, {Processor, File}),
+            ets:delete(?MODULE, {Processor, File}),
             no
     end;
 
