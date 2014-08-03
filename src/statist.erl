@@ -130,3 +130,6 @@ close_files(#state{file1 = File1, file2 = File2}) ->
         _ ->
             do_nothing
     end.
+
+
+% Tests

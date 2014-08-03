@@ -5,6 +5,7 @@
          deserialize_map/1
         ]).
 
+-include_lib("eunit/include/eunit.hrl").
 
 serialize_map({_, _, Micro} = TimeStamp, Map) ->
     {_, {Hour, Min, Sec}} = calendar:now_to_local_time(TimeStamp),
@@ -60,3 +61,13 @@ restore_binary(Serialized) ->
       re:replace(
         re:replace(Serialized, <<"\\\\n">>, <<"\n">>, [global]),
         <<"\\\\(.)">>, <<"\\1">>, [global])).
+
+
+% Tests
+
+serialization_test() ->
+    Now = now(),
+    {_, {Hour, Min, Sec}} = calendar:now_to_local_time(Now),
+    {_, _, Micro} = Now,
+    Serialized = serialize_map(Now, [{hello, "world"}, {<<" hello\n\\ ">>, 12.13}]),
+    ?assert([{timestamp, {{Hour, Min, Sec}, Micro}}, {<<"hello">>, <<"world">>}, {<<" hello\n\\ ">>, vutil:any_to_binary(12.13)}] =:= deserialize_map(Serialized)).
