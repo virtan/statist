@@ -68,9 +68,10 @@ load_cache(#state{cache_file = CacheFile} = State) ->
 init_cache(#state{} = State) ->
     catch ets:delete(?MODULE),
     ets:new(?MODULE, [named_table,
-                      {write_concurrency, false},
+                      {write_concurrency, true},
                       {read_concurrency, true},
-                      compressed]),
+                      compressed,
+                      public]),
     dump_cache(State).
 
 dump_cache(#state{cache_file = CacheFile}) ->
@@ -138,16 +139,14 @@ process_and_cache_intermediary(Processor, Files) ->
     ProcessorObj = statprocessor:get_processor(Processor),
     Results = vutil:pmap(fun(File) ->
               case from_cache(statprocessor:low_key(ProcessorObj), {file, File}) of
-                  {ok, Result} -> {cached, Result};
-                  _ -> {not_cached, File, statprocessor:low(ProcessorObj, File)}
+                  {ok, Result} -> Result;
+                  _ ->
+                      Result = statprocessor:low(ProcessorObj, File),
+                      to_cache(statprocessor:low_key(ProcessorObj), {file, File}, Result),
+                      Result
               end
          end, Files),
-    Results1 = lists:map(fun({cached, Result}) -> Result;
-              ({not_cached, File, Result}) ->
-                    to_cache(statprocessor:low_key(ProcessorObj), {file, File}, Result),
-                    Result
-         end, Results),
-    statprocessor:high(ProcessorObj, Results1).
+    statprocessor:high(ProcessorObj, Results).
 
 
 from_cache(Processor, {file, File}) ->
