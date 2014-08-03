@@ -46,7 +46,7 @@ get(Processor, From, To) ->
 init(_Options) ->
     CacheFileName = filename:join([application:get_env(statist, base_dir, "data"), "cache"]),
     State = #state{cache_file = CacheFileName},
-    vutil:recursive_make_dir(filename:dirname(CacheFileName)),
+    ok = filelib:ensure_dir(CacheFileName),
     load_cache(State),
     erlang:start_timer(5*60*1000, self(), write_cache),
     {ok, State}.

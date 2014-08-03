@@ -108,7 +108,7 @@ choose_file_to_write(TimeStamp, #state{file1 = File1, file2 = File2} = State) ->
 
 
 open_file(FName) ->
-    vutil:recursive_make_dir(filename:dirname(FName)),
+    ok = filelib:ensure_dir(FName),
     {ok, Fd} = file:open(FName, [append]),
     Fd.
 
