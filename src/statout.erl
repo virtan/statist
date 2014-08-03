@@ -193,9 +193,11 @@ global_test() ->
     timer:sleep(300),
     statprocessor:processor_module(?MODULE),
     Res1 = statout:get("test_processor", {2012, 8, 2}, {2014, 8, 3}),
+    statout ! write_cache,
+    timer:sleep(300),
     Res2 = statout:get("test_processor", {2012, 8, 2}, {2014, 8, 3}),
     application:stop(statist),
-    %os:cmd("rm -rf __data_temp"),
+    os:cmd("rm -rf __data_temp"),
     ?assert(Res1 =:= 3),
     ?assert(Res2 =:= 3).
 
