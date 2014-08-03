@@ -102,7 +102,7 @@ handle_cast(Unexpected, #state{} = State) ->
     {stop, {error_unexpected, Unexpected}, State}.
 
 
-handle_info(write_cache, State) ->
+handle_info({timeout, _, write_cache}, State) ->
     dump_cache(State),
     erlang:start_timer(5*60*1000, self(), write_cache),
     {noreply, State};
