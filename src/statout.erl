@@ -7,6 +7,7 @@
           stop/0,
 
           get/3,
+          get/4,
 
           init/1,
           handle_call/3,
@@ -15,7 +16,7 @@
           code_change/3,
           terminate/2,
 
-          test_processor/0
+          test_processor/1
         ]).
 
 -include_lib("eunit/include/eunit.hrl").
@@ -38,7 +39,9 @@ stop() ->
     gen_server:call(?MODULE, stop).
 
 get(Processor, From, To) ->
-    gen_server:call(?MODULE, {get, Processor, From, To}).
+    get(Processor, From, To, undefined).
+get(Processor, From, To, ProcInit) ->
+    gen_server:call(?MODULE, {get, Processor, From, To, ProcInit}).
 
 
 %% Internal
@@ -78,12 +81,12 @@ dump_cache(#state{cache_file = CacheFile}) ->
     ets:tab2file(?MODULE, CacheFile, [{extended_info, [object_count]}]).
 
 
-handle_call({get, _, From, To}, _From, #state{} = State) when From > To ->
+handle_call({get, _, From, To, _}, _From, #state{} = State) when From > To ->
     {reply, {error, "incorrect date"}, State};
-handle_call({get, Processor, From, To}, _From, #state{} = State) ->
-    case statprocessor:has_processor(Processor) of
+handle_call({get, Processor, From, To, ProcInit}, _From, #state{} = State) ->
+    case statprocessor:has_processor(Processor, ProcInit) of
         true ->
-            Result = get_from_cache_or_calculate(Processor, {From, To}),
+            Result = get_from_cache_or_calculate(Processor, {From, To}, ProcInit),
             {reply, Result, State};
         _ ->
             {reply, no_such_processor, State}
@@ -123,9 +126,9 @@ terminate({error_unexpected, _Unexpected}, #state{} = _State) ->
 terminate(_Reason, #state{} = _State) ->
     ok.
 
-get_from_cache_or_calculate(Processor, {From, To}) ->
+get_from_cache_or_calculate(Processor, {From, To}, ProcInit) ->
     Files = statpartition:filepaths_for_interval(From, To),
-    process_and_cache_intermediary(Processor, Files).
+    process_and_cache_intermediary(Processor, Files, ProcInit).
     %case from_cache(Processor, Interval) of
     %    {ok, Result} -> Result;
     %    _ ->
@@ -135,8 +138,8 @@ get_from_cache_or_calculate(Processor, {From, To}) ->
     %        Result
     %end.
 
-process_and_cache_intermediary(Processor, Files) ->
-    ProcessorObj = statprocessor:get_processor(Processor),
+process_and_cache_intermediary(Processor, Files, ProcInit) ->
+    ProcessorObj = statprocessor:get_processor(Processor, ProcInit),
     Results = vutil:pmap(fun(File) ->
               case from_cache(statprocessor:low_key(ProcessorObj), {file, File}) of
                   {ok, Result} -> Result;
@@ -192,16 +195,16 @@ global_test() ->
     gen_server:cast(statist, {event, {1407, 1000, 1212}, [{hello, world}]}),
     timer:sleep(300),
     statprocessor:processor_module(?MODULE),
-    Res1 = statout:get("test_processor", {2012, 8, 2}, {2014, 8, 3}),
-    statout ! write_cache,
+    Res1 = statout:get("test_processor", {2012, 8, 2}, {2014, 8, 3}, 1),
+    statout ! {timeout, anything, write_cache},
     timer:sleep(300),
-    Res2 = statout:get("test_processor", {2012, 8, 2}, {2014, 8, 3}),
+    Res2 = statout:get("test_processor", {2012, 8, 2}, {2014, 8, 3}, 1),
     application:stop(statist),
     os:cmd("rm -rf __data_temp"),
-    ?assert(Res1 =:= 3),
-    ?assert(Res2 =:= 3).
+    ?assert(Res1 =:= 4),
+    ?assert(Res2 =:= 4).
 
-test_processor() ->
+test_processor(ProcInit) ->
     #statprocessor{name = "test processor", version = "1",
                    low_func = fun(P, A) ->
                                       case proplists:get_value(<<"hello">>, P) of
@@ -211,5 +214,5 @@ test_processor() ->
                               end,
                    low_init = 0,
                    high_func = fun(Init, Ress) -> lists:foldl(fun(X, A) -> X + A end, Init, Ress) end,
-                   high_init = 0
+                   high_init = ProcInit 
                   }.
