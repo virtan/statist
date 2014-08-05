@@ -3,7 +3,7 @@
          processor_module/1,
          has_processor/2,
          get_processor/2,
-         low/2,
+         low/3,
          high/2,
          low_key/1
         ]).
@@ -14,8 +14,8 @@ processor_module(ModuleName) ->
     application:set_env(statist, processors, ModuleName).
 
 
-low(#statprocessor{low_func = LowFunc, low_init = LowInit}, File) ->
-    process_file(LowFunc, LowInit, File).
+low(#statprocessor{low_func = LowFunc, low_init = LowInit}, Date, File) ->
+    process_file(LowFunc, LowInit, Date, File).
 
 
 high(#statprocessor{high_func = HighFunc, high_init = HighInit}, LowResults) ->
@@ -50,24 +50,24 @@ low_key(#statprocessor{low_func = Func, low_init = Init}) ->
     erlang:phash2({Func, Init}).
 
 
-process_file(Fun, Acc, File) ->
+process_file(Fun, Acc, Date, File) ->
     case file:open(File, [read, read_ahead, binary]) of
         {ok, FD} ->
-            Res = process_lines(Fun, Acc, FD),
+            Res = process_lines(Fun, Acc, Date, FD),
             file:close(FD),
             Res;
         _ -> Acc
     end.
 
-process_lines(Fun, Acc, FD) ->
+process_lines(Fun, Acc, Date, FD) ->
     case file:read_line(FD) of
         {ok, Data} ->
                 try
-                  Map = statformat:deserialize_map(Data),
-                  process_lines(Fun, Fun(Map, Acc), FD)
+                  Map = statformat:deserialize_map(Date, Data),
+                  process_lines(Fun, Fun(Map, Acc), Date, FD)
                 catch
                     % TODO: print to log
-                    _:_ -> process_lines(Fun, Acc, FD)
+                    _:_ -> process_lines(Fun, Acc, Date, FD)
                 end;
         _ -> Acc
     end.

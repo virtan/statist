@@ -2,7 +2,7 @@
 
 -export([
          serialize_map/2,
-         deserialize_map/1
+         deserialize_map/2
         ]).
 
 -include_lib("eunit/include/eunit.hrl").
@@ -17,7 +17,7 @@ serialize_map({_, _, Micro} = TimeStamp, Map) ->
       map_to_string(Map), "\n"
                      ]).
 
-deserialize_map(Serialized) ->
+deserialize_map(Date, Serialized) ->
     [HourBinary, MinBinary, SecBinary, MicroBinary, SerializedMap]
         = re:split(Serialized, <<"[:. ]">>, [{parts, 5}]),
     Hour = list_to_integer(binary_to_list(HourBinary)),
@@ -25,7 +25,7 @@ deserialize_map(Serialized) ->
     Sec = list_to_integer(binary_to_list(SecBinary)),
     Micro = list_to_integer(binary_to_list(MicroBinary)),
     Cut = binary:longest_common_suffix([SerializedMap, <<"\n">>]),
-    [{timestamp, {{Hour, Min, Sec}, Micro}}
+    [{timestamp, {Date, {Hour, Min, Sec}, Micro}}
      | string_to_map(binary:part(SerializedMap, 0, size(SerializedMap) - Cut))].
 
 map_to_string(Map) ->
@@ -70,4 +70,4 @@ serialization_test() ->
     {_, {Hour, Min, Sec}} = calendar:now_to_local_time(Now),
     {_, _, Micro} = Now,
     Serialized = serialize_map(Now, [{hello, "world"}, {<<" hello\n\\ ">>, 12.13}]),
-    ?assert([{timestamp, {{Hour, Min, Sec}, Micro}}, {<<"hello">>, <<"world">>}, {<<" hello\n\\ ">>, vutil:any_to_binary(12.13)}] =:= deserialize_map(Serialized)).
+    ?assert([{timestamp, {{1, 1, 1}, {Hour, Min, Sec}, Micro}}, {<<"hello">>, <<"world">>}, {<<" hello\n\\ ">>, vutil:any_to_binary(12.13)}] =:= deserialize_map({1, 1, 1}, Serialized)).

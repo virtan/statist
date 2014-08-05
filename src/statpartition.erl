@@ -15,18 +15,21 @@ day_to_filepath({Year, Month, Day}) ->
                    "stat." ++ vutil:number_format(integer_to_list(Month), 2)
                    ++ vutil:number_format(integer_to_list(Day), 2) ++ ".data"]).
 
+file_pair(Date) ->
+    {Date, day_to_filepath(Date)}.
+
 % From and To is of format {Y, M, D}
 filepaths_for_interval({Y, M, _} = From, To) ->
     filepaths_for_interval(From, To, calendar:last_day_of_the_month(Y, M), []).
 
 filepaths_for_interval({Y, M, D}, {Y, M, D} = To, _, Res) ->
-    Res1 = [day_to_filepath(To) | Res],
+    Res1 = [file_pair(To) | Res],
     lists:reverse(Res1);
 filepaths_for_interval({Y1, 12, D1} = From, To, D1, Res) ->
     filepaths_for_interval({Y1 + 1, 1, 1}, To, calendar:last_day_of_the_month(Y1 + 1, 1),
-                           [day_to_filepath(From) | Res]);
+                           [file_pair(From) | Res]);
 filepaths_for_interval({Y1, M1, D1} = From, To, D1, Res) ->
     filepaths_for_interval({Y1, M1 + 1, 1}, To, calendar:last_day_of_the_month(Y1, M1 + 1),
-                           [day_to_filepath(From) | Res]);
+                           [file_pair(From) | Res]);
 filepaths_for_interval({Y1, M1, D1} = From, To, D2, Res) ->
-    filepaths_for_interval({Y1, M1, D1 + 1}, To, D2, [day_to_filepath(From) | Res]).
+    filepaths_for_interval({Y1, M1, D1 + 1}, To, D2, [file_pair(From) | Res]).
