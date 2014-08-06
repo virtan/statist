@@ -42,7 +42,8 @@ has_processor(ProcessorName, ProcInit) ->
         get_processor(ProcessorName, ProcInit),
         true
     catch
-        _:_ -> false
+        error:undef -> false;
+        throw:"no such processor" -> false
     end.
 
 
