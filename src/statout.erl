@@ -41,7 +41,7 @@ stop() ->
 get(Processor, From, To) ->
     get(Processor, From, To, undefined).
 get(Processor, From, To, ProcInit) ->
-    gen_server:call(?MODULE, {get, Processor, From, To, ProcInit}).
+    gen_server:call(?MODULE, {get, Processor, From, To, ProcInit}, 300000).
 
 
 %% Internal
