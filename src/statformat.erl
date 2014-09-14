@@ -9,7 +9,7 @@
 
 serialize_map({_, _, Micro} = TimeStamp, Map) ->
     {_, {Hour, Min, Sec}} = calendar:now_to_local_time(TimeStamp),
-    iolist_to_binary([
+    unicode:characters_to_binary([
       vutil:number_format(integer_to_list(Hour), 2), ":",
       vutil:number_format(integer_to_list(Min), 2), ":",
       vutil:number_format(integer_to_list(Sec), 2), ".",
@@ -57,7 +57,7 @@ safe_binary(Binary) ->
 
 
 restore_binary(Serialized) ->
-    iolist_to_binary(
+    unicode:characters_to_binary(
       re:replace(
         re:replace(Serialized, <<"\\\\n">>, <<"\n">>, [global]),
         <<"\\\\(.)">>, <<"\\1">>, [global])).
