@@ -129,27 +129,23 @@ terminate(_Reason, #state{} = _State) ->
 get_from_cache_or_calculate(Processor, {From, To}, ProcInit) ->
     FilePairs = statpartition:filepaths_for_interval(From, To),
     process_and_cache_intermediary(Processor, FilePairs, ProcInit).
-    %case from_cache(Processor, Interval) of
-    %    {ok, Result} -> Result;
-    %    _ ->
-    %        Files = statpartition:filepaths_for_interval(From, To),
-    %        Result = process_and_cache_intermediary(Processor, Files),
-    %        to_cache(Processor, Interval, Result),
-    %        Result
-    %end.
 
 process_and_cache_intermediary(Processor, FilePairs, ProcInit) ->
     ProcessorObj = statprocessor:get_processor(Processor, ProcInit),
-    Results = vutil:pmap(fun({Date, File}) ->
-              case from_cache(statprocessor:low_key(ProcessorObj), {file, File}) of
-                  {ok, Result} -> Result;
-                  _ ->
-                      Result = statprocessor:low(ProcessorObj, Date, File),
-                      to_cache(statprocessor:low_key(ProcessorObj), {file, File}, Result),
-                      Result
-              end
-         end, FilePairs),
-    statprocessor:high(ProcessorObj, Results).
+    Runner = statprocessor:runner(ProcessorObj),
+    Runner(ProcessorObj, fun() ->
+        Results = vutil:pmap(fun({Date, File}) ->
+                  case from_cache(statprocessor:low_key(ProcessorObj), {file, File}) of
+                      {ok, Result} -> Result;
+                      _ ->
+                          Result = statprocessor:low(ProcessorObj, Date, File),
+                          to_cache(statprocessor:low_key(ProcessorObj),
+                                   {file, File}, Result),
+                          Result
+                  end
+             end, FilePairs),
+        statprocessor:high(ProcessorObj, Results)
+                         end).
 
 
 from_cache(Processor, {file, File}) ->

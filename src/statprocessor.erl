@@ -5,7 +5,8 @@
          get_processor/2,
          low/3,
          high/2,
-         low_key/1
+         low_key/1,
+         runner/1
         ]).
 
 -include_lib("statist/include/statprocessor.hrl").
@@ -49,6 +50,14 @@ has_processor(ProcessorName, ProcInit) ->
 
 low_key(#statprocessor{low_func = Func, low_init = Init}) ->
     erlang:phash2({Func, Init}).
+
+
+runner(#statprocessor{runner = Runner}) ->
+    case Runner of
+        foreground -> fun(_, F) -> F() end;
+        F when is_function(F, 2) -> F;
+        _ -> throw("unknown runner")
+    end.
 
 
 process_file(Fun, Acc, Date, File) ->
