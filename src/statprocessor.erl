@@ -6,7 +6,8 @@
          low/3,
          high/2,
          low_key/1,
-         runner/1
+         runner/1,
+         processor_key/1
         ]).
 
 -include_lib("statist/include/statprocessor.hrl").
@@ -58,6 +59,11 @@ runner(#statprocessor{runner = Runner}) ->
         F when is_function(F, 2) -> F;
         _ -> throw("unknown runner")
     end.
+
+
+processor_key(#statprocessor{name = Name, version = Version,
+                             low_init = LowInit, high_init = HighInit}) ->
+    crypto:hash(md5, term_to_binary({Name, Version, LowInit, HighInit})).
 
 
 process_file(Fun, Acc, Date, File) ->
