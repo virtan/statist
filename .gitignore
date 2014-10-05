@@ -4,3 +4,4 @@ subs
 ebin/
 .dialyzer_plt
 rel/statist
+rebar
